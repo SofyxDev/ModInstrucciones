@@ -2,25 +2,17 @@ package Luxfiro.instruccioens_eufonia;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.logging.LogUtils;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.food.FoodProperties;
@@ -30,10 +22,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
-import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -51,10 +41,8 @@ import org.slf4j.Logger;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -126,7 +114,8 @@ public class Instruccioens_eufonia {
     public static long clientTimerEndTime = 0;
     public static boolean isTimerActive = false;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    // Cambiado de private a public para ser usado por SyncPacket
+    public static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final File CONFIG_DIR = FMLPaths.CONFIGDIR.get().resolve(MODID).toFile();
 
     public static final SimpleChannel CHANNEL = ChannelBuilder.named(ResourceLocation.fromNamespaceAndPath(MODID, "main"))
@@ -153,108 +142,6 @@ public class Instruccioens_eufonia {
 
         if (!CONFIG_DIR.exists()) CONFIG_DIR.mkdirs();
         clientConfig = serverConfig;
-    }
-
-    public static class SaveData {
-        public String titulo = "SIN TITULO";
-        public String subtitulo = "SIN SUBTITULO";
-        public String instrucciones = "";
-        public List<String> controles = new ArrayList<>();
-        public String logoI = null;
-        public String logoD = null;
-        public boolean blockF1 = true;
-
-        public float escalaTitulo = 1.0f;
-        public float escalaSubtitulo = 2.0f;
-        public float escalaInstrucciones = 0.85f;
-        public float escalaControles = 0.85f;
-
-        public float escalaLogoI = 1.0f;
-        public float escalaLogoD = 1.0f;
-        public int offsetX_LogoI = 0;
-        public int offsetY_LogoI = 0;
-        public int offsetX_LogoD = 0;
-        public int offsetY_LogoD = 0;
-
-        public int colorFondo = 0xFF000000;
-        public int colorFondo2 = 0xFF000000;
-        public int dominioFondo = 0;
-        public int colorTitulo = 0xFFAAAAAA;
-        public int colorSubtitulo = 0xFFFFFFFF;
-        public int colorInstrucciones = 0xFFFFFFFF;
-        public int colorControles = 0xFFFFFFFF;
-        public int colorLineas = 0xFFFFFFFF;
-        public int colorReloj = 0xFFFFFFFF;
-
-        public float grosorBarras = 0.25f;
-        public boolean mostrarReloj = true;
-        public boolean mostrarLineas = true;
-
-        public int offsetY_Titulo = 0;
-        public int offsetX_Titulo = 0;
-        public int offsetY_Subtitulo = 0;
-        public int offsetX_Subtitulo = 0;
-
-        public SaveData validate() {
-            if (titulo == null) titulo = "";
-            if (subtitulo == null) subtitulo = "";
-            if (instrucciones == null) instrucciones = "";
-            if (controles == null) controles = new ArrayList<>();
-            if (escalaLogoI == 0.0f) escalaLogoI = 1.0f;
-            if (escalaLogoD == 0.0f) escalaLogoD = 1.0f;
-            return this;
-        }
-    }
-
-    public record SyncPacket(boolean openScreen, long durationLeftMs, String jsonData, boolean isDisplayCommand) implements CustomPacketPayload {
-
-        public static final Type<SyncPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(MODID, "sync"));
-
-        public static final StreamCodec<FriendlyByteBuf, SyncPacket> STREAM_CODEC = StreamCodec.composite(
-                ByteBufCodecs.BOOL, SyncPacket::openScreen,
-                ByteBufCodecs.VAR_LONG, SyncPacket::durationLeftMs,
-                ByteBufCodecs.stringUtf8(262144), SyncPacket::jsonData,
-                ByteBufCodecs.BOOL, SyncPacket::isDisplayCommand,
-                SyncPacket::new
-        );
-
-        @Override
-        public Type<? extends CustomPacketPayload> type() {
-            return TYPE;
-        }
-
-        public void handleClient() {
-            clientConfig = GSON.fromJson(this.jsonData, SaveData.class);
-            if (clientConfig != null) clientConfig.validate(); else clientConfig = new SaveData();
-
-            if (this.isDisplayCommand) {
-                if (this.durationLeftMs > 0) {
-                    clientTimerEndTime = System.currentTimeMillis() + this.durationLeftMs;
-                    isTimerActive = true;
-                } else {
-                    clientTimerEndTime = 0;
-                    isTimerActive = false;
-                }
-
-                Minecraft mc = Minecraft.getInstance();
-
-                if (this.openScreen) {
-                    if (mc.level == null || mc.player == null) {
-                        ClientForgeEvents.pendingScreenOpen = true;
-                        ClientForgeEvents.pendingScreenDelay = 40;
-                    } else {
-                        if (!(mc.screen instanceof PantallaEvento)) {
-                            ClientForgeEvents.evaluarFade(true);
-                        }
-                    }
-                } else {
-                    ClientForgeEvents.pendingScreenOpen = false;
-                    if (mc.screen instanceof PantallaEvento && PantallaEvento.fadePhase != 3 && PantallaEvento.fadePhase != 4) {
-                        ClientForgeEvents.evaluarFade(false);
-                    }
-                }
-            }
-        }
     }
 
     private void handlePlayerSync(ServerPlayer player) {
@@ -557,275 +444,5 @@ public class Instruccioens_eufonia {
             else if (parts.length == 1) { ms += Integer.parseInt(parts[0]) * 1000L; }
         } catch (Exception ignored) {}
         return ms;
-    }
-
-    @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
-    public static class ClientForgeEvents {
-        public static boolean pendingScreenOpen = false;
-        public static int pendingScreenDelay = 0;
-
-        public static void evaluarFade(boolean open) {
-            Minecraft mc = Minecraft.getInstance();
-            if (open) {
-                if (mc.screen instanceof PantallaEvento) return;
-                PantallaEvento.fadePhase = 1;
-                PantallaEvento.fadeStartTime = System.currentTimeMillis();
-                mc.setScreen(new PantallaEvento());
-            } else {
-                if (!(mc.screen instanceof PantallaEvento) || PantallaEvento.fadePhase == 3 || PantallaEvento.fadePhase == 4) return;
-                PantallaEvento.fadePhase = 3;
-                PantallaEvento.fadeStartTime = System.currentTimeMillis();
-            }
-        }
-
-        @SubscribeEvent
-        public static void onClientTick(TickEvent.ClientTickEvent event) {
-            if (event.phase != TickEvent.Phase.END) return;
-            Minecraft mc = Minecraft.getInstance();
-
-            if (pendingScreenOpen && mc.level != null && mc.player != null) {
-                if (pendingScreenDelay > 0) {
-                    pendingScreenDelay--;
-                } else {
-                    pendingScreenOpen = false;
-                    if (!(mc.screen instanceof PantallaEvento)) {
-                        evaluarFade(true);
-                    }
-                }
-            }
-
-            long current = System.currentTimeMillis();
-
-            if (mc.screen instanceof PantallaEvento && (PantallaEvento.fadePhase == 2 || PantallaEvento.fadePhase == 3)) {
-                if (mc.gameRenderer.currentEffect() == null) {
-                    mc.gameRenderer.loadEffect(ResourceLocation.parse(MODID + ":shaders/post/camara.json"));
-                }
-            }
-
-            if (!(mc.screen instanceof PantallaEvento) && PantallaEvento.fadePhase != 0 && PantallaEvento.fadePhase != 4) {
-                PantallaEvento.fadePhase = 0;
-                if (mc.gameRenderer.currentEffect() != null) {
-                    mc.gameRenderer.shutdownEffect();
-                }
-            }
-
-            if (PantallaEvento.fadePhase == 1) {
-                if (current - PantallaEvento.fadeStartTime >= PantallaEvento.FADE_DURATION) {
-                    PantallaEvento.fadePhase = 2;
-                    PantallaEvento.fadeStartTime = current;
-                }
-            } else if (PantallaEvento.fadePhase == 2) {
-                if (current - PantallaEvento.fadeStartTime >= PantallaEvento.FADE_DURATION) {
-                    PantallaEvento.fadePhase = 0;
-                }
-            } else if (PantallaEvento.fadePhase == 3) {
-                if (current - PantallaEvento.fadeStartTime >= PantallaEvento.FADE_DURATION) {
-                    PantallaEvento.fadePhase = 4;
-                    PantallaEvento.fadeStartTime = current;
-                    if (mc.gameRenderer.currentEffect() != null) {
-                        mc.gameRenderer.shutdownEffect();
-                    }
-                }
-            } else if (PantallaEvento.fadePhase == 4) {
-                if (current - PantallaEvento.fadeStartTime >= PantallaEvento.FADE_DURATION) {
-                    PantallaEvento.fadePhase = 0;
-                    mc.setScreen(null);
-                }
-            }
-
-            if (isTimerActive && PantallaEvento.fadePhase == 0 && mc.screen instanceof PantallaEvento) {
-                if (current >= clientTimerEndTime) {
-                    isTimerActive = false;
-                    evaluarFade(false);
-                }
-            }
-
-            if (clientConfig.blockF1 && mc.screen instanceof PantallaEvento) {
-                mc.options.hideGui = false;
-                for (net.minecraft.client.KeyMapping key : mc.options.keyMappings) {
-                    if (key.getName().equals("key.toggleGui")) {
-                        while (key.consumeClick()) {}
-                    }
-                }
-            }
-        }
-    }
-
-    public static class PantallaEvento extends Screen {
-
-        public static int fadePhase = 0;
-        public static long fadeStartTime = 0;
-        public static final long FADE_DURATION = 2500L;
-
-        protected PantallaEvento() { super(Component.literal("Pantalla Evento")); }
-
-        private int aplicarAlpha(int colorOriginal, float alphaMod) {
-            int a = (colorOriginal >> 24) & 0xFF;
-            a = (int)(a * alphaMod);
-            return (a << 24) | (colorOriginal & 0x00FFFFFF);
-        }
-
-        private int interpolateColor(int c1, int c2, float fraction, int dominio) {
-            if (dominio == 1) { fraction = (float) Math.pow(fraction, 6.0); }
-            else if (dominio == 2) { fraction = (float) Math.pow(fraction, 0.16); }
-
-            int a1 = (c1 >> 24) & 0xFF, r1 = (c1 >> 16) & 0xFF, g1 = (c1 >> 8) & 0xFF, b1 = c1 & 0xFF;
-            int a2 = (c2 >> 24) & 0xFF, r2 = (c2 >> 16) & 0xFF, g2 = (c2 >> 8) & 0xFF, b2 = c2 & 0xFF;
-            int a = (int)(a1 + (a2 - a1) * fraction);
-            int r = (int)(r1 + (r2 - r1) * fraction);
-            int g = (int)(g1 + (g2 - g1) * fraction);
-            int b = (int)(b1 + (b2 - b1) * fraction);
-            return (a << 24) | (r << 16) | (g << 8) | b;
-        }
-
-        @Override
-        public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-            // Vacío intencionalmente para evitar el fondo por defecto
-        }
-
-        @Override
-        public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-            Minecraft mc = Minecraft.getInstance();
-            if (clientConfig.blockF1) mc.options.hideGui = false;
-
-            int width = this.width; int height = this.height;
-
-            long elapsedFade = System.currentTimeMillis() - fadeStartTime;
-            float progress = Math.min(1.0f, (float)elapsedFade / FADE_DURATION);
-
-            float overlayAlpha = 0.0f;
-            boolean drawUI = false;
-
-            if (fadePhase == 1) { overlayAlpha = progress; drawUI = false; }
-            else if (fadePhase == 2) { overlayAlpha = 1.0f - progress; drawUI = true; }
-            else if (fadePhase == 3) { overlayAlpha = progress; drawUI = true; }
-            else if (fadePhase == 4) { overlayAlpha = 1.0f - progress; drawUI = false; }
-            else { overlayAlpha = 0.0f; drawUI = true; }
-
-            if (drawUI) {
-                float sTitulo = clientConfig.escalaTitulo;
-                float sSubtitulo = clientConfig.escalaSubtitulo;
-                float sInst = clientConfig.escalaInstrucciones;
-                float sControles = clientConfig.escalaControles;
-
-                int topUI = (int)(height * clientConfig.grosorBarras);
-                int bottomUI = (int)(height * (1.0f - clientConfig.grosorBarras));
-                int midUI = (int)(width * 0.50);
-
-                int camTop = topUI + (int)(height * 0.02f);
-                int camBottom = bottomUI - (int)(height * 0.02f);
-                int camLeft = (int)(width * 0.52); int camRight = (int)(width * 0.98);
-
-                int pad = 30;
-
-                int tituloX = (width / 2) + clientConfig.offsetX_Titulo;
-                int tituloY = (topUI / 2 - 15) + clientConfig.offsetY_Titulo;
-                int subtituloX = (width / 2) + clientConfig.offsetX_Subtitulo;
-                int subtituloY = (topUI / 2 + 5) + clientConfig.offsetY_Subtitulo;
-
-                int controlesCabeceraY = topUI + 15; int controlesListaY = topUI + 32;
-                int instCabeceraY = bottomUI + 15; int instTextoY = bottomUI + 32;
-
-                int cFondo1 = aplicarAlpha(clientConfig.colorFondo, 1.0f);
-                int cFondo2 = aplicarAlpha(clientConfig.colorFondo2, 1.0f);
-                int cLineas = aplicarAlpha(clientConfig.colorLineas, 1.0f);
-
-                RenderSystem.enableBlend(); RenderSystem.defaultBlendFunc(); RenderSystem.disableDepthTest();
-
-                float fracTop = (float)camTop / height;
-                float fracBottom = (float)camBottom / height;
-
-                int cMidTop = interpolateColor(cFondo1, cFondo2, fracTop, clientConfig.dominioFondo);
-                int cMidBottom = interpolateColor(cFondo1, cFondo2, fracBottom, clientConfig.dominioFondo);
-
-                graphics.fillGradient(0, 0, width, camTop, cFondo1, cMidTop);
-                graphics.fillGradient(0, camBottom, width, height, cMidBottom, cFondo2);
-                graphics.fillGradient(0, camTop, camLeft, camBottom, cMidTop, cMidBottom);
-                graphics.fillGradient(camRight, camTop, width, camBottom, cMidTop, cMidBottom);
-
-                if (clientConfig.mostrarLineas) {
-                    graphics.fill(0, topUI - 1, width, topUI + 1, cLineas); graphics.fill(0, bottomUI - 1, width, bottomUI + 1, cLineas);
-                    graphics.fill(midUI - 1, topUI, midUI + 1, bottomUI, cLineas);
-                    graphics.fill(camLeft - 1, camTop - 1, camRight + 1, camTop, cLineas); graphics.fill(camLeft - 1, camBottom, camRight + 1, camBottom + 1, cLineas);
-                    graphics.fill(camLeft - 1, camTop, camLeft, camBottom, cLineas); graphics.fill(camRight, camTop, camRight + 1, camBottom, cLineas);
-                }
-
-                if (clientConfig.logoI != null) {
-                    graphics.pose().pushPose();
-                    graphics.pose().translate(20 + clientConfig.offsetX_LogoI, 20 + clientConfig.offsetY_LogoI, 0);
-                    graphics.pose().scale(clientConfig.escalaLogoI, clientConfig.escalaLogoI, clientConfig.escalaLogoI);
-                    graphics.blit(ResourceLocation.fromNamespaceAndPath(MODID, clientConfig.logoI), 0, 0, 0, 0, 64, 64, 64, 64);
-                    graphics.pose().popPose();
-                }
-
-                if (clientConfig.logoD != null) {
-                    graphics.pose().pushPose();
-                    graphics.pose().translate((width - 84) + clientConfig.offsetX_LogoD, 20 + clientConfig.offsetY_LogoD, 0);
-                    graphics.pose().scale(clientConfig.escalaLogoD, clientConfig.escalaLogoD, clientConfig.escalaLogoD);
-                    graphics.blit(ResourceLocation.fromNamespaceAndPath(MODID, clientConfig.logoD), 0, 0, 0, 0, 64, 64, 64, 64);
-                    graphics.pose().popPose();
-                }
-
-                if (isTimerActive && clientConfig.mostrarReloj) {
-                    long timeLeft = Math.max(0, clientTimerEndTime - System.currentTimeMillis());
-                    long ts = timeLeft / 1000;
-                    String timeStr = String.format("%02d:%02d:%02d", ts / 3600, (ts % 3600) / 60, ts % 60);
-                    graphics.drawCenteredString(this.font, timeStr, width / 2, 10, clientConfig.colorReloj);
-                }
-
-                graphics.pose().pushPose(); graphics.pose().scale(sTitulo, sTitulo, sTitulo);
-                String[] lineasTitulo = clientConfig.titulo.split("\n");
-                for (int i = 0; i < lineasTitulo.length; i++) graphics.drawCenteredString(this.font, lineasTitulo[i], (int) (tituloX / sTitulo), (int) ((tituloY + (i * 12)) / sTitulo), clientConfig.colorTitulo);
-                graphics.pose().popPose();
-
-                graphics.pose().pushPose(); graphics.pose().scale(sSubtitulo, sSubtitulo, sSubtitulo);
-                String[] lineasSubtitulo = clientConfig.subtitulo.split("\n");
-                for (int i = 0; i < lineasSubtitulo.length; i++) graphics.drawCenteredString(this.font, lineasSubtitulo[i], (int) (subtituloX / sSubtitulo), (int) ((subtituloY + (i * 12)) / sSubtitulo), clientConfig.colorSubtitulo);
-                graphics.pose().popPose();
-
-                int colorTextoBase = 0xFFFFFFFF;
-
-                graphics.pose().pushPose(); graphics.pose().scale(1.1f, 1.1f, 1.1f);
-                graphics.drawString(this.font, "Controles Especiales", (int)(pad / 1.1f), (int)(controlesCabeceraY / 1.1f), clientConfig.colorControles);
-                graphics.pose().popPose();
-
-                graphics.pose().pushPose(); graphics.pose().scale(sControles, sControles, sControles);
-                for (int i = 0; i < clientConfig.controles.size(); i++) {
-                    String[] subLineas = clientConfig.controles.get(i).split("\n");
-                    for (int j = 0; j < subLineas.length; j++) graphics.drawString(this.font, subLineas[j], (int)(pad / sControles), (int)((controlesListaY + (i * 15) + (j * 10)) / sControles), colorTextoBase);
-                }
-                graphics.pose().popPose();
-
-                graphics.pose().pushPose(); graphics.pose().scale(1.1f, 1.1f, 1.1f);
-                graphics.drawString(this.font, "Instrucciones", (int)(pad / 1.1f), (int)(instCabeceraY / 1.1f), clientConfig.colorInstrucciones);
-                graphics.pose().popPose();
-
-                graphics.pose().pushPose(); graphics.pose().scale(sInst, sInst, sInst);
-                int wrapWidth = (int)((width - (pad * 2)) / sInst);
-                graphics.drawWordWrap(this.font, Component.literal(clientConfig.instrucciones), (int)(pad / sInst), (int)(instTextoY / sInst), wrapWidth, colorTextoBase);
-                graphics.pose().popPose();
-
-                RenderSystem.enableDepthTest(); RenderSystem.disableBlend();
-            }
-
-            if (overlayAlpha > 0.0f) {
-                RenderSystem.enableBlend();
-                RenderSystem.defaultBlendFunc();
-                RenderSystem.disableDepthTest();
-                int alphaInt = (int)(overlayAlpha * 255.0f);
-                int blackARGB = (alphaInt << 24) | 0x000000;
-
-                graphics.pose().pushPose();
-                graphics.pose().translate(0, 0, 5000);
-                graphics.fill(0, 0, width, height, blackARGB);
-                graphics.pose().popPose();
-
-                RenderSystem.enableDepthTest();
-                RenderSystem.disableBlend();
-            }
-        }
-
-        public boolean shouldCloseOnEsc() { return false; }
-        public boolean isPauseScreen() { return false; }
     }
 }
