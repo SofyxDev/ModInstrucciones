@@ -1,4 +1,4 @@
-package Luxfiro.instruccioens_eufonia;
+package Luxfiro.instrucciones.config;
 
 import java.util.ArrayList;
 import java.util.List;

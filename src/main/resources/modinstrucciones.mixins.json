@@ -1,12 +1,9 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "Luxfiro.instruccioens_eufonia.mixin",
-  "compatibilityLevel": "JAVA_8",
-  "refmap": "instruccioens_eufonia.refmap.json",
+  "package": "Luxfiro.mixin",
+  "compatibilityLevel": "JAVA_21",
   "mixins": [
-  ],
-  "client": [
   ],
   "injectors": {
     "defaultRequire": 1

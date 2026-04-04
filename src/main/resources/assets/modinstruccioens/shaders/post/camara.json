@@ -4,7 +4,7 @@
     ],
     "passes": [
         {
-            "name": "instruccioens_eufonia:camara",
+            "name": "modinstruccioens:camara",
             "intarget": "minecraft:main",
             "outtarget": "swap"
         },

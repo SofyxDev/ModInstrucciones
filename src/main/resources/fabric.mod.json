@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "instrucciones_eufonia",
+  "version": "${version}",
+  "name": "Instrucciones Eufonia",
+  "description": "UI system for instructions and event display",
+  "authors": [
+    "SofyxDev"
+  ],
+  "contact": {
+    "homepage": "https://github.com"
+  },
+  "license": "MIT",
+  "environment": "*",
+  "accessWidener": "instrucciones.accesswidener",
+  "entrypoints": {
+    "main": [
+      "Luxfiro.instrucciones.InstruccionesMod"
+    ],
+    "client": [
+      "Luxfiro.instrucciones.client.InstruccionesClient"
+    ]
+  },
+  "mixins": [],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "fabric-api": "*",
+    "minecraft": "1.21.1"
+  }
+}

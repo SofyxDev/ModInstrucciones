@@ -4,8 +4,8 @@
         "srcrgb": "one",
         "dstrgb": "zero"
     },
-    "vertex": "instruccioens_eufonia:camara",
-    "fragment": "instruccioens_eufonia:camara",
+    "vertex": "modinstruccioens:camara",
+    "fragment": "modinstruccioens:camara",
     "attributes": [
         "Position"
     ],
